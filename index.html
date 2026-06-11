@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DOCFORGE — Document Converter</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --bg:      #0d0d0f;
+  --surface: #141417;
+  --panel:   #1b1b1f;
+  --panel2:  #202025;
+  --border:  #2a2a30;
+  --border2: #38383f;
+  --accent:  #ff5c00;
+  --accent2: #ff8c42;
+  --text:    #e8e8ec;
+  --muted:   #6b6b78;
+  --success: #00c896;
+  --error:   #ff3b5c;
+  --info:    #3b9eff;
+  --mono:    'Space Mono', monospace;
+  --sans:    'Space Grotesk', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── Header ── */
+header {
+  padding: 18px 40px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: rgba(13,13,15,0.94);
+  backdrop-filter: blur(14px);
+  z-index: 200;
+}
+.logo {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-icon {
+  width: 30px; height: 30px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem;
+}
+.logo span { color: var(--accent); }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.tagline {
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.privacy-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--success);
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+  background: rgba(0,200,150,0.08);
+  border: 1px solid rgba(0,200,150,0.2);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.privacy-dot {
+  width: 6px; height: 6px;
+  background: var(--success);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--success);
+}
+
+/* ── Hero ── */
+.hero {
+  padding: 56px 40px 40px;
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin-bottom: 16px;
+}
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p {
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.65;
+  max-width: 500px;
+  margin-bottom: 28px;
+}
+.stat-row {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-val {
+  font-family: var(--mono);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.stat-val span { color: var(--accent); }
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ── Main ── */
+main {
+  flex: 1;
+  padding: 0 40px 80px;
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Tabs ── */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 10px 18px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── Drop Zone ── */
+.drop-zone {
+  border: 1.5px dashed var(--border);
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 52px 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  position: relative;
+  margin-bottom: 28px;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(255,92,0,0.04);
+  transform: translateY(-1px);
+}
+.drop-zone input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.drop-icon {
+  width: 56px; height: 56px;
+  margin: 0 auto 20px;
+  background: rgba(255,92,0,0.12);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem;
+  transition: transform 0.2s;
+}
+.drop-zone:hover .drop-icon { transform: scale(1.08); }
+.drop-zone h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+.drop-zone p  { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+.supported-formats {
+  margin-top: 16px;
+  display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+}
+.fmt-tag {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+.multi-note {
+  margin-top: 10px;
+  font-size: 0.74rem;
+  color: var(--info);
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+}
+
+/* ── Converter Panel ── */
+#converter-panel { display: none; }
+
+/* ── Progress Bar ── */
+.progress-wrap {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  display: none;
+}
+.progress-wrap.visible { display: block; }
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* ── File Queue ── */
+.file-queue { margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px; }
+.file-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: border-color 0.15s;
+}
+.file-card.done  { border-color: rgba(0,200,150,0.35); }
+.file-card.error { border-color: rgba(255,59,92,0.35); }
+.file-card.converting { border-color: var(--accent); }
+.file-ext {
+  width: 42px; height: 42px;
+  background: rgba(255,92,0,0.1);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.file-card.done  .file-ext { background: rgba(0,200,150,0.1); color: var(--success); }
+.file-card.error .file-ext { background: rgba(255,59,92,0.1); color: var(--error); }
+.file-meta { flex: 1; min-width: 0; }
+.file-name {
+  font-weight: 600; font-size: 0.9rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.file-info { color: var(--muted); font-size: 0.74rem; margin-top: 2px; font-family: var(--mono); }
+.file-status { font-size: 0.76rem; margin-top: 3px; }
+.file-status.ok   { color: var(--success); }
+.file-status.fail { color: var(--error); }
+.file-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.icon-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+.icon-btn:hover { border-color: var(--error); color: var(--error); }
+.icon-btn.download { border-color: rgba(0,200,150,0.3); color: var(--success); }
+.icon-btn.download:hover { border-color: var(--success); background: rgba(0,200,150,0.08); }
+
+/* ── Section label ── */
+.section-label {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+/* ── Format Grid ── */
+.format-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.format-btn {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.format-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgba(255,92,0,0.05);
+  transform: translateY(-1px);
+}
+.format-btn.selected {
+  border-color: var(--accent);
+  background: rgba(255,92,0,0.1);
+}
+.format-btn:disabled { opacity: 0.22; cursor: not-allowed; }
+.format-btn .ext {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.format-btn .desc { font-size: 0.7rem; color: var(--muted); line-height: 1.3; }
+.format-btn.selected .ext { color: var(--accent2); }
+
+/* ── Actions Row ── */
+.actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--sans);
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 0.15s, transform 0.1s;
+  display: flex; align-items: center; gap: 8px;
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent2); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.38; cursor: not-allowed; transform: none; }
+
+.btn-secondary {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  display: flex; align-items: center; gap: 7px;
+}
+.btn-secondary:hover:not(:disabled) { border-color: var(--border2); background: var(--panel2); }
+.btn-secondary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.btn-ghost {
+  background: none;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 16px;
+  font-size: 0.82rem;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-ghost:hover { color: var(--error); border-color: var(--error); }
+
+/* ── Preview Pane ── */
+.preview-wrap {
+  margin-top: 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: none;
+}
+.preview-wrap.visible { display: block; }
+.preview-header {
+  background: var(--panel);
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.preview-title {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.preview-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; }
+.preview-actions { display: flex; gap: 8px; }
+.preview-body {
+  background: var(--surface);
+  padding: 24px;
+  max-height: 360px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: #b8b8c4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.preview-body.rendered {
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  white-space: normal;
+}
+.preview-body.rendered h1,h2,h3 { color: var(--text); margin: 12px 0 6px; }
+.preview-body.rendered table { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+.preview-body.rendered th,
+.preview-body.rendered td { border: 1px solid var(--border); padding: 6px 10px; }
+.preview-body.rendered th { background: var(--panel); color: var(--muted); }
+
+/* ── Stats Bar ── */
+.stats-bar {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: none;
+}
+.stats-bar.visible { display: flex; }
+.stat-item { display: flex; flex-direction: column; gap: 2px; }
+.stat-num {
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.stat-lbl { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+.stat-divider { width: 1px; background: var(--border); align-self: stretch; }
+
+/* ── Status ── */
+#status-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-size: 0.86rem;
+}
+#status-box.visible     { display: flex; }
+#status-box.success     { border-color: var(--success); background: rgba(0,200,150,0.06); }
+#status-box.error       { border-color: var(--error);   background: rgba(255,59,92,0.06); }
+#status-box.loading     { border-color: var(--border); }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.success .status-dot    { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.error   .status-dot    { background: var(--error);   box-shadow: 0 0 8px var(--error); }
+.loading .status-dot    { background: var(--accent); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.25; } }
+
+/* ── Copy toast ── */
+#copy-toast {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  background: var(--success);
+  color: #000;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 10px 20px;
+  border-radius: 8px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  z-index: 999;
+}
+#copy-toast.show { opacity: 1; transform: translateY(0); }
+
+/* ── Compat Table ── */
+.compat-wrap {
+  margin-top: 48px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.compat-header {
+  background: var(--panel);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.compat-header::before {
+  content: '';
+  width: 8px; height: 8px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+th {
+  background: var(--surface);
+  padding: 9px 12px;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+td { padding: 10px 12px; border-bottom: 1px solid rgba(42,42,48,0.5); }
+tr:last-child td { border-bottom: none; }
+.check { color: var(--success); font-size: 0.85rem; }
+.cross { color: var(--border2); font-size: 0.85rem; }
+.from-lbl { font-family: var(--mono); font-size: 0.74rem; color: var(--accent); font-weight: 700; }
+
+/* ── Batch tab ── */
+.batch-summary {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.batch-stat {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 90px;
+}
+.batch-stat-val { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; color: var(--text); }
+.batch-stat-val.ok    { color: var(--success); }
+.batch-stat-val.fail  { color: var(--error); }
+.batch-stat-lbl { font-size: 0.66rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 20px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: var(--mono);
+  letter-spacing: 0.05em;
+}
+.footer-links { display: flex; gap: 20px; }
+.footer-links span { cursor: default; }
+.footer-links span:hover { color: var(--text); }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  header, main, .hero { padding-left: 18px; padding-right: 18px; }
+  .hero { padding-top: 36px; padding-bottom: 28px; }
+  .format-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  .actions-row { flex-direction: column; align-items: flex-start; }
+  .stat-row { gap: 20px; }
+  footer { flex-direction: column; gap: 10px; text-align: center; }
+  .tagline { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚙</div>
+    DOC<span>FORGE</span>
+  </div>
+  <div class="header-right">
+    <div class="tagline">Document Converter</div>
+    <div class="privacy-badge"><div class="privacy-dot"></div> 100% Local</div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-eyebrow">// Universal Document Converter</div>
+  <h1>Convert any doc<br>to <em>any format.</em></h1>
+  <p>Drop one file or a whole batch. Pick a target format. Everything runs entirely in your browser — zero uploads, zero servers.</p>
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-val"><span>6</span></div>
+      <div class="stat-label">Input formats</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val"><span>8</span></div>
+      <div class="stat-label">Output formats</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val"><span>∞</span></div>
+      <div class="stat-label">Files at once</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val"><span>0</span></div>
+      <div class="stat-label">Data uploaded</div>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="single">Single File</button>
+    <button class="tab-btn" data-tab="batch">Batch Convert</button>
+    <button class="tab-btn" data-tab="matrix">Format Matrix</button>
+  </div>
+
+  <!-- ═══ SINGLE FILE TAB ═══ -->
+  <div class="tab-content active" id="tab-single">
+
+    <!-- Drop Zone -->
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".txt,.md,.markdown,.html,.htm,.docx,.csv,.json" />
+      <div class="drop-icon">📄</div>
+      <h3>Drop your document here</h3>
+      <p>or click to browse your files</p>
+      <div class="supported-formats">
+        <span class="fmt-tag">TXT</span>
+        <span class="fmt-tag">MARKDOWN</span>
+        <span class="fmt-tag">HTML</span>
+        <span class="fmt-tag">DOCX</span>
+        <span class="fmt-tag">CSV</span>
+        <span class="fmt-tag">JSON</span>
+      </div>
+    </div>
+
+    <!-- Converter Panel -->
+    <div id="converter-panel">
+
+      <!-- Progress -->
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+
+      <!-- File Card -->
+      <div class="file-queue" id="single-file-queue"></div>
+
+      <!-- Stats -->
+      <div class="stats-bar" id="stats-bar">
+        <div class="stat-item">
+          <div class="stat-num" id="stat-words">—</div>
+          <div class="stat-lbl">Words</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-chars">—</div>
+          <div class="stat-lbl">Characters</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-lines">—</div>
+          <div class="stat-lbl">Lines</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-size">—</div>
+          <div class="stat-lbl">Size</div>
+        </div>
+      </div>
+
+      <!-- Format picker -->
+      <div class="section-label">Convert to</div>
+      <div class="format-grid" id="format-grid"></div>
+
+      <!-- Actions -->
+      <div class="actions-row">
+        <button class="btn-primary" id="convert-btn" disabled>⚡ Convert</button>
+        <button class="btn-secondary" id="download-btn" style="display:none">⬇ Download</button>
+        <button class="btn-secondary" id="copy-btn" style="display:none">⎘ Copy to clipboard</button>
+        <button class="btn-ghost" id="reset-btn">✕ Remove file</button>
+      </div>
+
+      <!-- Status -->
+      <div id="status-box">
+        <div class="status-dot"></div>
+        <span id="status-text"></span>
+      </div>
+
+      <!-- Preview -->
+      <div class="preview-wrap" id="preview-wrap">
+        <div class="preview-header">
+          <div class="preview-title">
+            <div class="preview-dot"></div>
+            <span id="preview-label">Output Preview</span>
+          </div>
+          <div class="preview-actions">
+            <button class="btn-secondary" id="toggle-render-btn" style="font-size:0.75rem;padding:6px 12px">Render HTML</button>
+          </div>
+        </div>
+        <div class="preview-body" id="preview-body"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ BATCH TAB ═══ -->
+  <div class="tab-content" id="tab-batch">
+
+    <div class="drop-zone" id="batch-drop-zone">
+      <input type="file" id="batch-file-input" accept=".txt,.md,.markdown,.html,.htm,.docx,.csv,.json" multiple />
+      <div class="drop-icon">📦</div>
+      <h3>Drop multiple files here</h3>
+      <p>All files will be converted to the same output format</p>
+      <div class="multi-note">⚡ Supports up to 20 files at once</div>
+    </div>
+
+    <div id="batch-panel" style="display:none">
+      <div class="batch-summary">
+        <div class="batch-stat">
+          <div class="batch-stat-val" id="b-total">0</div>
+          <div class="batch-stat-lbl">Total</div>
+        </div>
+        <div class="batch-stat">
+          <div class="batch-stat-val ok" id="b-done">0</div>
+          <div class="batch-stat-lbl">Done</div>
+        </div>
+        <div class="batch-stat">
+          <div class="batch-stat-val fail" id="b-fail">0</div>
+          <div class="batch-stat-lbl">Failed</div>
+        </div>
+      </div>
+
+      <div class="section-label">Convert all to</div>
+      <div class="format-grid" id="batch-format-grid"></div>
+
+      <div class="actions-row">
+        <button class="btn-primary" id="batch-convert-btn" disabled>⚡ Convert All</button>
+        <button class="btn-secondary" id="batch-download-btn" style="display:none">⬇ Download All (.zip)</button>
+        <button class="btn-ghost" id="batch-reset-btn">✕ Clear all</button>
+      </div>
+
+      <div class="progress-wrap" id="batch-progress-wrap">
+        <div class="progress-bar" id="batch-progress-bar"></div>
+      </div>
+
+      <div class="file-queue" id="batch-file-queue"></div>
+    </div>
+  </div>
+
+  <!-- ═══ MATRIX TAB ═══ -->
+  <div class="tab-content" id="tab-matrix">
+    <div class="compat-wrap">
+      <div class="compat-header">Conversion Matrix — what converts to what</div>
+      <table>
+        <thead>
+          <tr>
+            <th>From ╲ To</th>
+            <th>TXT</th><th>MD</th><th>HTML</th><th>PDF</th>
+            <th>CSV</th><th>JSON</th><th>RTF</th><th>XML</th><th>YAML</th>
+          </tr>
+        </thead>
+        <tbody id="compat-body"></tbody>
+      </table>
+    </div>
+    <p style="margin-top:16px;font-size:0.78rem;color:var(--muted);font-family:var(--mono);">
+      // All conversions are client-side. DOCX input uses mammoth.js. PDF output via jsPDF. Batch ZIP via JSZip.
+    </p>
+  </div>
+
+</main>
+
+<div id="copy-toast">✓ Copied to clipboard</div>
+
+<footer>
+  <span>DOCFORGE © 2025 — Zero data transmission</span>
+  <div class="footer-links">
+    <span>100% Client-Side</span>
+    <span>No Account Needed</span>
+    <span>Free Forever</span>
+  </div>
+</footer>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  FORMAT DEFINITIONS
+// ════════════════════════════════════════════════════════
+const FORMATS = [
+  { ext:'txt',  desc:'Plain text',       mime:'text/plain'           },
+  { ext:'md',   desc:'Markdown',         mime:'text/markdown'        },
+  { ext:'html', desc:'Web page',         mime:'text/html'            },
+  { ext:'pdf',  desc:'PDF document',     mime:'application/pdf'      },
+  { ext:'csv',  desc:'Spreadsheet rows', mime:'text/csv'             },
+  { ext:'json', desc:'Structured data',  mime:'application/json'     },
+  { ext:'rtf',  desc:'Rich text',        mime:'application/rtf'      },
+  { ext:'xml',  desc:'Markup data',      mime:'application/xml'      },
+  { ext:'yaml', desc:'Human-readable data', mime:'text/yaml'         },
+];
+
+const SUPPORT = {
+  txt:  ['md','html','pdf','json','rtf','xml','yaml'],
+  md:   ['txt','html','pdf','json','rtf','xml','yaml'],
+  html: ['txt','md','pdf','json','rtf','xml','yaml'],
+  docx: ['txt','md','html','pdf','json','rtf','xml','yaml'],
+  csv:  ['txt','html','json','xml','md','yaml'],
+  json: ['txt','html','csv','xml','md','yaml','rtf'],
+};
+
+// ════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════
+let currentFile    = null;
+let currentExt     = null;
+let selectedFmt    = null;
+let convertedBlob  = null;
+let convertedText  = null;
+let isRendered     = false;
+
+let batchFiles     = [];
+let batchFmt       = null;
+let batchBlobs     = [];   // { name, blob }[]
+
+// ════════════════════════════════════════════════════════
+//  TABS
+// ════════════════════════════════════════════════════════
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ════════════════════════════════════════════════════════
+//  SINGLE — DROP ZONE
+// ════════════════════════════════════════════════════════
+const dropZone   = document.getElementById('drop-zone');
+const fileInput  = document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleSingleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleSingleFile(fileInput.files[0]); });
+
+function handleSingleFile(file) {
+  const ext = getExt(file.name);
+  if (!SUPPORT[ext]) {
+    alert(`".${ext}" is not a supported input format.\nSupported: TXT, MD, HTML, DOCX, CSV, JSON`);
+    return;
+  }
+  currentFile = file;
+  currentExt  = ext;
+  selectedFmt = null;
+  convertedBlob = null;
+  convertedText = null;
+
+  // File card
+  const queue = document.getElementById('single-file-queue');
+  queue.innerHTML = '';
+  const card = makeFileCard(file, ext);
+  queue.appendChild(card);
+
+  // Stats
+  computeStats(file);
+
+  // Format grid
+  buildFormatGrid('format-grid', ext, fmt => {
+    selectedFmt = fmt;
+    document.getElementById('convert-btn').disabled = false;
+    hideStatus();
+    document.getElementById('download-btn').style.display = 'none';
+    document.getElementById('copy-btn').style.display = 'none';
+    document.getElementById('preview-wrap').classList.remove('visible');
+    convertedBlob = null;
+    convertedText = null;
+  });
+
+  document.getElementById('convert-btn').disabled = true;
+  document.getElementById('download-btn').style.display = 'none';
+  document.getElementById('copy-btn').style.display = 'none';
+  document.getElementById('preview-wrap').classList.remove('visible');
+  hideStatus();
+
+  dropZone.style.display = 'none';
+  document.getElementById('converter-panel').style.display = 'block';
+}
+
+function computeStats(file) {
+  const bar = document.getElementById('stats-bar');
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const chars = text.length;
+    const lines = text.split('\n').length;
+    document.getElementById('stat-words').textContent = words.toLocaleString();
+    document.getElementById('stat-chars').textContent = chars.toLocaleString();
+    document.getElementById('stat-lines').textContent = lines.toLocaleString();
+    document.getElementById('stat-size').textContent  = formatBytes(file.size);
+    bar.classList.add('visible');
+  };
+  reader.onerror = () => bar.classList.remove('visible');
+  if (getExt(file.name) === 'docx') {
+    document.getElementById('stat-size').textContent = formatBytes(file.size);
+    bar.classList.add('visible');
+  } else {
+    reader.readAsText(file);
+  }
+}
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  currentFile = null; currentExt = null; selectedFmt = null; convertedBlob = null; convertedText = null;
+  fileInput.value = '';
+  document.getElementById('single-file-queue').innerHTML = '';
+  document.getElementById('stats-bar').classList.remove('visible');
+  document.getElementById('converter-panel').style.display = 'none';
+  document.getElementById('preview-wrap').classList.remove('visible');
+  dropZone.style.display = 'block';
+  document.getElementById('download-btn').style.display = 'none';
+  document.getElementById('copy-btn').style.display = 'none';
+  hideStatus();
+  resetProgress();
+});
+
+// ════════════════════════════════════════════════════════
+//  SINGLE — CONVERT
+// ════════════════════════════════════════════════════════
+document.getElementById('convert-btn').addEventListener('click', async () => {
+  if (!currentFile || !selectedFmt) return;
+  setStatus('loading', 'Converting…');
+  document.getElementById('convert-btn').disabled = true;
+  document.getElementById('download-btn').style.display = 'none';
+  document.getElementById('copy-btn').style.display = 'none';
+  document.getElementById('preview-wrap').classList.remove('visible');
+  animateProgress(0, 80, 600);
+
+  try {
+    const content = await readFile(currentFile, currentExt);
+    animateProgress(80, 95, 300);
+    const { blob, text } = await convertDoc(content, currentExt, selectedFmt, currentFile);
+    animateProgress(95, 100, 150);
+    convertedBlob = blob;
+    convertedText = text;
+    setStatus('success', `Converted to .${selectedFmt.toUpperCase()} — ready to download.`);
+    document.getElementById('download-btn').style.display = 'flex';
+    if (isTextFmt(selectedFmt)) document.getElementById('copy-btn').style.display = 'flex';
+    showPreview(text, selectedFmt);
+    setTimeout(resetProgress, 600);
+  } catch(err) {
+    setStatus('error', 'Conversion failed: ' + (err.message || err));
+    resetProgress();
+  }
+  document.getElementById('convert-btn').disabled = false;
+});
+
+document.getElementById('download-btn').addEventListener('click', () => {
+  if (!convertedBlob) return;
+  const base = currentFile.name.replace(/\.[^.]+$/, '');
+  saveAs(convertedBlob, `${base}.${selectedFmt}`);
+});
+
+document.getElementById('copy-btn').addEventListener('click', () => {
+  if (!convertedText) return;
+  navigator.clipboard.writeText(convertedText).then(() => showToast());
+});
+
+// ════════════════════════════════════════════════════════
+//  SINGLE — PREVIEW
+// ════════════════════════════════════════════════════════
+function showPreview(text, fmt) {
+  const wrap  = document.getElementById('preview-wrap');
+  const body  = document.getElementById('preview-body');
+  const label = document.getElementById('preview-label');
+  const toggleBtn = document.getElementById('toggle-render-btn');
+
+  isRendered = false;
+  body.classList.remove('rendered');
+  body.textContent = text ? text.slice(0, 8000) + (text.length > 8000 ? '\n…[truncated]' : '') : '(empty output)';
+  label.textContent = `Output Preview — .${fmt.toUpperCase()}`;
+  toggleBtn.style.display = (fmt === 'html' || fmt === 'md') ? 'flex' : 'none';
+  wrap.classList.add('visible');
+}
+
+document.getElementById('toggle-render-btn').addEventListener('click', () => {
+  const body = document.getElementById('preview-body');
+  if (!convertedText) return;
+  isRendered = !isRendered;
+  if (isRendered) {
+    const html = selectedFmt === 'md' ? marked.parse(convertedText) : convertedText;
+    body.classList.add('rendered');
+    body.innerHTML = html;
+    document.getElementById('toggle-render-btn').textContent = 'Show Source';
+  } else {
+    body.classList.remove('rendered');
+    body.textContent = convertedText.slice(0, 8000);
+    document.getElementById('toggle-render-btn').textContent = 'Render HTML';
+  }
+});
+
+// ════════════════════════════════════════════════════════
+//  BATCH
+// ════════════════════════════════════════════════════════
+const batchDrop  = document.getElementById('batch-drop-zone');
+const batchInput = document.getElementById('batch-file-input');
+
+batchDrop.addEventListener('dragover', e => { e.preventDefault(); batchDrop.classList.add('drag-over'); });
+batchDrop.addEventListener('dragleave', () => batchDrop.classList.remove('drag-over'));
+batchDrop.addEventListener('drop', e => {
+  e.preventDefault(); batchDrop.classList.remove('drag-over');
+  handleBatchFiles([...e.dataTransfer.files]);
+});
+batchInput.addEventListener('change', () => handleBatchFiles([...batchInput.files]));
+
+function handleBatchFiles(files) {
+  batchFiles = files.filter(f => SUPPORT[getExt(f.name)]).slice(0, 20);
+  if (!batchFiles.length) { alert('No supported files found.'); return; }
+  batchFmt = null; batchBlobs = [];
+
+  document.getElementById('b-total').textContent = batchFiles.length;
+  document.getElementById('b-done').textContent  = 0;
+  document.getElementById('b-fail').textContent  = 0;
+
+  // Build all-formats grid (union of all supported conversions)
+  const allSupported = [...new Set(batchFiles.flatMap(f => SUPPORT[getExt(f.name)] || []))];
+  buildBatchFormatGrid(allSupported);
+
+  // Render file list
+  const queue = document.getElementById('batch-file-queue');
+  queue.innerHTML = '';
+  batchFiles.forEach(f => queue.appendChild(makeFileCard(f, getExt(f.name))));
+
+  document.getElementById('batch-convert-btn').disabled = true;
+  document.getElementById('batch-download-btn').style.display = 'none';
+  batchDrop.style.display = 'none';
+  document.getElementById('batch-panel').style.display = 'block';
+}
+
+function buildBatchFormatGrid(allowed) {
+  const grid = document.getElementById('batch-format-grid');
+  grid.innerHTML = '';
+  FORMATS.forEach(fmt => {
+    const btn = document.createElement('button');
+    btn.className = 'format-btn';
+    btn.disabled = !allowed.includes(fmt.ext);
+    btn.innerHTML = `<span class="ext">.${fmt.ext.toUpperCase()}</span><span class="desc">${fmt.desc}</span>`;
+    btn.addEventListener('click', () => {
+      grid.querySelectorAll('.format-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      batchFmt = fmt.ext;
+      document.getElementById('batch-convert-btn').disabled = false;
+    });
+    grid.appendChild(btn);
+  });
+}
+
+document.getElementById('batch-convert-btn').addEventListener('click', async () => {
+  if (!batchFmt || !batchFiles.length) return;
+  batchBlobs = [];
+  const btn = document.getElementById('batch-convert-btn');
+  btn.disabled = true;
+  document.getElementById('batch-download-btn').style.display = 'none';
+
+  const cards = document.querySelectorAll('#batch-file-queue .file-card');
+  let done = 0, fail = 0;
+
+  for (let i = 0; i < batchFiles.length; i++) {
+    const file = batchFiles[i];
+    const card = cards[i];
+    card.classList.add('converting');
+    const pct = Math.round(((i) / batchFiles.length) * 100);
+    animateBatchProgress(pct, Math.round(((i+1) / batchFiles.length) * 100), 400);
+
+    try {
+      const ext = getExt(file.name);
+      const content = await readFile(file, ext);
+      const { blob } = await convertDoc(content, ext, batchFmt, file);
+      const base = file.name.replace(/\.[^.]+$/, '');
+      batchBlobs.push({ name: `${base}.${batchFmt}`, blob });
+      card.classList.remove('converting');
+      card.classList.add('done');
+      const statusEl = card.querySelector('.file-status');
+      if (statusEl) { statusEl.className = 'file-status ok'; statusEl.textContent = `✓ Converted to .${batchFmt.toUpperCase()}`; }
+      done++;
+    } catch(err) {
+      card.classList.remove('converting');
+      card.classList.add('error');
+      const statusEl = card.querySelector('.file-status');
+      if (statusEl) { statusEl.className = 'file-status fail'; statusEl.textContent = `✗ ${err.message || 'Failed'}`; }
+      fail++;
+    }
+
+    document.getElementById('b-done').textContent = done;
+    document.getElementById('b-fail').textContent = fail;
+  }
+
+  animateBatchProgress(100, 100, 100);
+  btn.disabled = false;
+  if (batchBlobs.length) document.getElementById('batch-download-btn').style.display = 'flex';
+  setTimeout(() => document.getElementById('batch-progress-wrap').style.display = 'none', 1000);
+});
+
+document.getElementById('batch-download-btn').addEventListener('click', async () => {
+  if (!batchBlobs.length) return;
+  if (batchBlobs.length === 1) {
+    saveAs(batchBlobs[0].blob, batchBlobs[0].name);
+    return;
+  }
+  const zip = new JSZip();
+  batchBlobs.forEach(({ name, blob }) => zip.file(name, blob));
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  saveAs(zipBlob, `docforge-batch-${Date.now()}.zip`);
+});
+
+document.getElementById('batch-reset-btn').addEventListener('click', () => {
+  batchFiles = []; batchFmt = null; batchBlobs = [];
+  batchInput.value = '';
+  document.getElementById('batch-file-queue').innerHTML = '';
+  document.getElementById('batch-panel').style.display = 'none';
+  document.getElementById('batch-download-btn').style.display = 'none';
+  batchDrop.style.display = 'block';
+  document.getElementById('b-total').textContent = 0;
+  document.getElementById('b-done').textContent  = 0;
+  document.getElementById('b-fail').textContent  = 0;
+});
+
+// ════════════════════════════════════════════════════════
+//  FORMAT GRID BUILDER
+// ════════════════════════════════════════════════════════
+function buildFormatGrid(gridId, fromExt, onSelect) {
+  const allowed = SUPPORT[fromExt] || [];
+  const grid = document.getElementById(gridId);
+  grid.innerHTML = '';
+  FORMATS.forEach(fmt => {
+    if (fmt.ext === fromExt) return;
+    const btn = document.createElement('button');
+    btn.className = 'format-btn';
+    btn.disabled = !allowed.includes(fmt.ext);
+    btn.innerHTML = `<span class="ext">.${fmt.ext.toUpperCase()}</span><span class="desc">${fmt.desc}</span>`;
+    btn.addEventListener('click', () => {
+      grid.querySelectorAll('.format-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      onSelect(fmt.ext);
+    });
+    grid.appendChild(btn);
+  });
+}
+
+// ════════════════════════════════════════════════════════
+//  FILE CARD BUILDER
+// ════════════════════════════════════════════════════════
+function makeFileCard(file, ext) {
+  const card = document.createElement('div');
+  card.className = 'file-card';
+  card.innerHTML = `
+    <div class="file-ext">.${ext.toUpperCase()}</div>
+    <div class="file-meta">
+      <div class="file-name">${file.name}</div>
+      <div class="file-info">${formatBytes(file.size)}</div>
+      <div class="file-status"></div>
+    </div>
+  `;
+  return card;
+}
+
+// ════════════════════════════════════════════════════════
+//  READ FILE
+// ════════════════════════════════════════════════════════
+function readFile(file, ext) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    if (ext === 'docx') {
+      reader.onload = e => resolve(e.target.result);
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = e => resolve(e.target.result);
+      reader.readAsText(file);
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════
+//  CORE CONVERTER
+// ════════════════════════════════════════════════════════
+async function convertDoc(content, from, to, file) {
+  let text = '', html = '', md = '';
+
+  if (from === 'docx') {
+    const result = await mammoth.convertToHtml({ arrayBuffer: content });
+    html = result.value;
+    text = stripHtml(html);
+    md   = htmlToMd(html);
+  } else if (from === 'html') {
+    html = content;
+    text = stripHtml(html);
+    md   = htmlToMd(html);
+  } else if (from === 'md') {
+    md   = content;
+    html = marked.parse(content);
+    text = stripHtml(html);
+  } else if (from === 'txt') {
+    text = content;
+    html = `<html><body><pre style="font-family:monospace;white-space:pre-wrap;max-width:800px;margin:40px auto;padding:0 24px">${escHtml(content)}</pre></body></html>`;
+    md   = content;
+  } else if (from === 'csv') {
+    text = content;
+    html = csvToHtml(content);
+    md   = csvToMd(content);
+  } else if (from === 'json') {
+    text = content;
+    html = jsonToHtml(content);
+    md   = jsonToMd(content);
+  }
+
+  let outputText = text;
+  let blob;
+
+  switch (to) {
+    case 'txt':
+      outputText = text;
+      blob = new Blob([text], { type: 'text/plain' });
+      break;
+    case 'md':
+      outputText = md || text;
+      blob = new Blob([md || text], { type: 'text/markdown' });
+      break;
+    case 'html':
+      outputText = fullHtml(html || escHtml(text));
+      blob = new Blob([outputText], { type: 'text/html' });
+      break;
+    case 'pdf':
+      blob = await textToPdf(text, html, from);
+      outputText = '[Binary PDF — download to view]';
+      break;
+    case 'json':
+      if (from === 'csv') {
+        const parsed = Papa.parse(content, { header: true, skipEmptyLines: true });
+        outputText = JSON.stringify(parsed.data, null, 2);
+      } else if (from === 'json') {
+        outputText = content;
+      } else {
+        outputText = JSON.stringify({ source: from, filename: file.name, content: text }, null, 2);
+      }
+      blob = new Blob([outputText], { type: 'application/json' });
+      break;
+    case 'csv':
+      if (from === 'json') {
+        try {
+          const obj = JSON.parse(content);
+          const arr = Array.isArray(obj) ? obj : [obj];
+          outputText = Papa.unparse(arr);
+        } catch { outputText = text; }
+      } else {
+        outputText = text;
+      }
+      blob = new Blob([outputText], { type: 'text/csv' });
+      break;
+    case 'rtf':
+      outputText = toRtf(text);
+      blob = new Blob([outputText], { type: 'application/rtf' });
+      break;
+    case 'xml':
+      outputText = toXml(text, from, file.name);
+      blob = new Blob([outputText], { type: 'application/xml' });
+      break;
+    case 'yaml':
+      outputText = toYaml(text, from, file.name);
+      blob = new Blob([outputText], { type: 'text/yaml' });
+      break;
+    default:
+      throw new Error('Unsupported output format: ' + to);
+  }
+
+  return { blob, text: outputText };
+}
+
+// ════════════════════════════════════════════════════════
+//  FORMAT HELPERS
+// ════════════════════════════════════════════════════════
+function stripHtml(h) {
+  const d = document.createElement('div');
+  d.innerHTML = h;
+  return d.textContent || d.innerText || '';
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fullHtml(body) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{font-family:Georgia,serif;max-width:800px;margin:48px auto;padding:0 24px;line-height:1.75;color:#1a1a1a;font-size:16px}
+  h1,h2,h3,h4{color:#111;margin:1.4em 0 0.5em;line-height:1.2}
+  pre,code{background:#f4f4f4;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:0.9em}
+  pre{padding:12px 16px;overflow-x:auto}
+  table{border-collapse:collapse;width:100%;margin:1em 0}
+  th,td{border:1px solid #ddd;padding:8px 12px;text-align:left}
+  th{background:#f0f0f0;font-weight:600}
+  a{color:#0070f3}
+  blockquote{border-left:3px solid #ddd;padding-left:16px;color:#666;margin:1em 0}
+  img{max-width:100%;height:auto}
+</style>
+</head>
+<body>${body}</body>
+</html>`;
+}
+
+function htmlToMd(html) {
+  let s = html;
+  s = s.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '# $1\n\n');
+  s = s.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '## $1\n\n');
+  s = s.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '### $1\n\n');
+  s = s.replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, '#### $1\n\n');
+  s = s.replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, '**$1**');
+  s = s.replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, '**$1**');
+  s = s.replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, '*$1*');
+  s = s.replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, '*$1*');
+  s = s.replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)');
+  s = s.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, '`$1`');
+  s = s.replace(/<br\s*\/?>/gi, '\n');
+  s = s.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n');
+  s = s.replace(/<\/?[uo]l[^>]*>/gi, '\n');
+  s = s.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '$1\n\n');
+  s = s.replace(/<[^>]+>/g, '');
+  s = s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/&quot;/g,'"');
+  return s.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function csvToHtml(csv) {
+  const parsed = Papa.parse(csv, { skipEmptyLines: true });
+  if (!parsed.data.length) return '<p>Empty CSV</p>';
+  const rows = parsed.data;
+  let h = '<table><thead><tr>' + rows[0].map(c => `<th>${escHtml(c)}</th>`).join('') + '</tr></thead><tbody>';
+  for (let i = 1; i < rows.length; i++)
+    h += '<tr>' + rows[i].map(c => `<td>${escHtml(c)}</td>`).join('') + '</tr>';
+  return h + '</tbody></table>';
+}
+
+function csvToMd(csv) {
+  const parsed = Papa.parse(csv, { skipEmptyLines: true });
+  if (!parsed.data.length) return '';
+  const rows = parsed.data;
+  let out = '| ' + rows[0].join(' | ') + ' |\n';
+  out    += '| ' + rows[0].map(() => '---').join(' | ') + ' |\n';
+  for (let i = 1; i < rows.length; i++)
+    out += '| ' + rows[i].join(' | ') + ' |\n';
+  return out;
+}
+
+function jsonToHtml(json) {
+  try {
+    const obj = JSON.parse(json);
+    const arr = Array.isArray(obj) ? obj : [obj];
+    if (arr.length && arr[0] && typeof arr[0] === 'object') {
+      const keys = Object.keys(arr[0]);
+      let h = '<table><thead><tr>' + keys.map(k => `<th>${escHtml(k)}</th>`).join('') + '</tr></thead><tbody>';
+      arr.forEach(row => {
+        h += '<tr>' + keys.map(k => `<td>${escHtml(String(row[k] ?? ''))}</td>`).join('') + '</tr>';
+      });
+      return h + '</tbody></table>';
+    }
+    return `<pre>${escHtml(JSON.stringify(obj, null, 2))}</pre>`;
+  } catch {
+    return `<pre>${escHtml(json)}</pre>`;
+  }
+}
+
+function jsonToMd(json) {
+  try {
+    const obj = JSON.parse(json);
+    const arr = Array.isArray(obj) ? obj : [obj];
+    if (arr.length && arr[0] && typeof arr[0] === 'object')
+      return csvToMd(Papa.unparse(arr));
+    return '```json\n' + JSON.stringify(obj, null, 2) + '\n```';
+  } catch { return json; }
+}
+
+function toRtf(text) {
+  const esc = text
+    .replace(/\\/g,'\\\\').replace(/\{/g,'\\{').replace(/\}/g,'\\}')
+    .replace(/\n/g,'\\par\n')
+    .replace(/[^\x00-\x7F]/g, c => `\\u${c.charCodeAt(0)}?`);
+  return `{\\rtf1\\ansi\\deff0\n{\\fonttbl{\\f0\\fnil\\fcharset0 Courier New;}}\n{\\colortbl;\\red26\\green26\\blue26;}\n\\f0\\fs22\\cf1\n${esc}\n}`;
+}
+
+function toXml(text, from, filename) {
+  const lines = text.split('\n');
+  const items = lines.map((l,i) => `  <line n="${i+1}">${escHtml(l)}</line>`).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<document source="${escHtml(from)}" filename="${escHtml(filename)}" converted="${new Date().toISOString()}">\n${items}\n</document>`;
+}
+
+function toYaml(text, from, filename) {
+  const lines = text.split('\n');
+  const safeLines = lines.map(l => `  - "${l.replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`).join('\n');
+  return `# DOCFORGE conversion\nsource: ${from}\nfilename: "${filename}"\nconverted: "${new Date().toISOString()}"\nlines:\n${safeLines}\n`;
+}
+
+async function textToPdf(text, html, from) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const margin = 52;
+  const maxW   = doc.internal.pageSize.getWidth() - margin * 2;
+  const pageH  = doc.internal.pageSize.getHeight();
+  const lh     = 14;
+  let y = margin + 10;
+
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(10);
+  doc.setTextColor(26,26,26);
+
+  const textContent = text || stripHtml(html);
+  const rawLines = textContent.split('\n');
+
+  for (const line of rawLines) {
+    const wrapped = doc.splitTextToSize(line || ' ', maxW);
+    for (const wl of wrapped) {
+      if (y > pageH - margin) { doc.addPage(); y = margin; }
+      doc.text(wl, margin, y);
+      y += lh;
+    }
+  }
+
+  return doc.output('blob');
+}
+
+// ════════════════════════════════════════════════════════
+//  COMPAT TABLE
+// ════════════════════════════════════════════════════════
+(function buildCompatTable() {
+  const fromFmts = ['txt','md','html','docx','csv','json'];
+  const toFmts   = ['txt','md','html','pdf','csv','json','rtf','xml','yaml'];
+  const tbody = document.getElementById('compat-body');
+
+  fromFmts.forEach(from => {
+    const supported = SUPPORT[from] || [];
+    const tr = document.createElement('tr');
+    let cells = `<td class="from-lbl">.${from.toUpperCase()}</td>`;
+    toFmts.forEach(to => {
+      if (to === from) cells += `<td class="cross">—</td>`;
+      else cells += supported.includes(to)
+        ? `<td class="check">✓</td>`
+        : `<td class="cross">✗</td>`;
+    });
+    tr.innerHTML = cells;
+    tbody.appendChild(tr);
+  });
+})();
+
+// ════════════════════════════════════════════════════════
+//  STATUS / PROGRESS / TOAST HELPERS
+// ════════════════════════════════════════════════════════
+function setStatus(type, msg) {
+  const box = document.getElementById('status-box');
+  box.className = `visible ${type}`;
+  document.getElementById('status-text').textContent = msg;
+}
+function hideStatus() {
+  document.getElementById('status-box').className = '';
+}
+
+function animateProgress(from, to, dur) {
+  const wrap = document.getElementById('progress-wrap');
+  const bar  = document.getElementById('progress-bar');
+  wrap.classList.add('visible');
+  bar.style.width = from + '%';
+  setTimeout(() => { bar.style.transition = `width ${dur}ms ease`; bar.style.width = to + '%'; }, 30);
+}
+function resetProgress() {
+  const wrap = document.getElementById('progress-wrap');
+  const bar  = document.getElementById('progress-bar');
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+  wrap.classList.remove('visible');
+}
+
+function animateBatchProgress(from, to, dur) {
+  const wrap = document.getElementById('batch-progress-wrap');
+  const bar  = document.getElementById('batch-progress-bar');
+  wrap.style.display = 'block';
+  bar.style.width = from + '%';
+  setTimeout(() => { bar.style.transition = `width ${dur}ms ease`; bar.style.width = to + '%'; }, 30);
+}
+
+function showToast() {
+  const t = document.getElementById('copy-toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ════════════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════════════
+function getExt(name) {
+  const e = name.split('.').pop().toLowerCase();
+  return e === 'markdown' ? 'md' : e === 'htm' ? 'html' : e;
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+function isTextFmt(ext) {
+  return ['txt','md','html','csv','json','rtf','xml','yaml'].includes(ext);
+}
+</script>
+</body>
+</html>
